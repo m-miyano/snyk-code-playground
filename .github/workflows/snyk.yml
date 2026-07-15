@@ -49,16 +49,28 @@ jobs:
         id: snyk
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          NO_COLOR: "1"
         run: |
-          snyk test --file=requirements.txt --package-manager=pip --severity-threshold=high > snyk_output.txt 2>&1
+          snyk test --file=requirements.txt --package-manager=pip --severity-threshold=high > snyk_output_raw.txt 2>&1
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g' snyk_output_raw.txt > snyk_output.txt
           cat snyk_output.txt
+
+      - name: Format PR comment
+        if: always()
+        run: |
+          {
+            echo "### Snyk Open Source scan result"
+            echo '```'
+            cat snyk_output.txt
+            echo '```'
+          } > snyk_comment.md
 
       - name: Post result to PR
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file snyk_output.txt
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file snyk_comment.md
 
       - name: Fail workflow if vulnerabilities found
         if: steps.snyk.outputs.exit_code != '0'
