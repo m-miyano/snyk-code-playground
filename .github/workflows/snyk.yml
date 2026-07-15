@@ -28,8 +28,11 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
           NO_COLOR: "1"
         run: |
+          set +e
           snyk code test --severity-threshold=medium > snyk_output_raw.txt 2>&1
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit_code=$?
+          set -e
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
           sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g' snyk_output_raw.txt > snyk_output.txt
           cat snyk_output.txt
 
@@ -80,8 +83,11 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
           NO_COLOR: "1"
         run: |
+          set +e
           snyk test --file=requirements.txt --package-manager=pip --severity-threshold=high > snyk_output_raw.txt 2>&1
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit_code=$?
+          set -e
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
           sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g' snyk_output_raw.txt > snyk_output.txt
           cat snyk_output.txt
 
