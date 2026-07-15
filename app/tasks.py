@@ -1,3 +1,4 @@
+import yaml
 from flask import Blueprint, abort, jsonify, request, session
 
 from app import db
@@ -66,3 +67,39 @@ def delete_task(task_id):
     db.session.delete(task)
     db.session.commit()
     return "", 204
+
+
+@tasks_bp.get("/export")
+@login_required
+def export_tasks():
+    tasks = Task.query.filter_by(user_id=session["user_id"]).all()
+    body = yaml.dump([_serialize(t) for t in tasks])
+    return body, 200, {"Content-Type": "application/x-yaml"}
+
+
+@tasks_bp.post("/import")
+@login_required
+def import_tasks():
+    data = request.get_json(silent=True) or {}
+    raw = data.get("yaml", "")
+
+    # Accept a previously-exported YAML backup for bulk restore.
+    items = yaml.load(raw)
+    if not isinstance(items, list):
+        return jsonify({"error": "invalid payload"}), 400
+
+    created = []
+    for item in items:
+        title = (item.get("title") or "").strip()
+        if not title:
+            continue
+        task = Task(
+            title=title,
+            done=bool(item.get("done")),
+            user_id=session["user_id"],
+        )
+        db.session.add(task)
+        created.append(task)
+    db.session.commit()
+
+    return jsonify([_serialize(t) for t in created]), 201
